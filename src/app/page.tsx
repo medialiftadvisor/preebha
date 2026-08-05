@@ -17,19 +17,85 @@ import {
 export const revalidate = 60;
 
 export default async function HomePage() {
-  const [newArrivals, bestSellers, categories] = await Promise.all([
-    prisma.product.findMany({
-      where: { isNewArrival: true },
-      take: 4,
-      include: { category: true, images: true, variants: true },
-    }),
-    prisma.product.findMany({
-      where: { isBestSeller: true },
-      take: 4,
-      include: { category: true, images: true, variants: true },
-    }),
-    prisma.category.findMany({ take: 5 }),
-  ]);
+  let newArrivals: any[] = [];
+  let bestSellers: any[] = [];
+  let categories: any[] = [];
+
+  try {
+    const res = await Promise.all([
+      prisma.product.findMany({
+        where: { isNewArrival: true },
+        take: 4,
+        include: { category: true, images: true, variants: true },
+      }),
+      prisma.product.findMany({
+        where: { isBestSeller: true },
+        take: 4,
+        include: { category: true, images: true, variants: true },
+      }),
+      prisma.category.findMany({ take: 5 }),
+    ]);
+    newArrivals = res[0];
+    bestSellers = res[1];
+    categories = res[2];
+  } catch (error) {
+    console.warn('Database query notice (Using static fallback for serverless preview):', error);
+  }
+
+  // Fallback demo products if DB uninitialized
+  const fallbackProducts = [
+    {
+      id: 'demo-1',
+      name: 'Gilded Rose Zari Embroidered Silk Kurta Set',
+      slug: 'gilded-rose-zari-embroidered-silk-kurta-set',
+      mrp: 6999,
+      sellingPrice: 4999,
+      discountPercent: 28,
+      isNewArrival: true,
+      isBestSeller: true,
+      category: { name: 'Kurta Sets', slug: 'kurta-sets' },
+      images: [{ url: 'https://images.unsplash.com/photo-1610030469983-98e550d6193c?auto=format&fit=crop&q=80&w=800' }],
+    },
+    {
+      id: 'demo-2',
+      name: 'Ivory Chanderi Floral Printed Kurta Set',
+      slug: 'ivory-chanderi-floral-printed-kurta-set',
+      mrp: 5499,
+      sellingPrice: 3999,
+      discountPercent: 27,
+      isNewArrival: true,
+      isBestSeller: false,
+      category: { name: 'Kurta Sets', slug: 'kurta-sets' },
+      images: [{ url: 'https://images.unsplash.com/photo-1583391733956-3750e0ff4e8b?auto=format&fit=crop&q=80&w=800' }],
+    },
+    {
+      id: 'demo-3',
+      name: 'Deep Plum Velvet Embroidered Anarkali Dress',
+      slug: 'deep-plum-velvet-embroidered-anarkali-dress',
+      mrp: 8999,
+      sellingPrice: 6499,
+      discountPercent: 27,
+      isNewArrival: false,
+      isBestSeller: true,
+      category: { name: 'Dresses', slug: 'dresses' },
+      images: [{ url: 'https://images.unsplash.com/photo-1595777457583-95e059d581b8?auto=format&fit=crop&q=80&w=800' }],
+    },
+    {
+      id: 'demo-4',
+      name: 'Blush Nude Linen Blend Belted Co-ord Set',
+      slug: 'blush-nude-linen-blend-belted-co-ord-set',
+      mrp: 4499,
+      sellingPrice: 3299,
+      discountPercent: 26,
+      isNewArrival: true,
+      isBestSeller: true,
+      category: { name: 'Co-ord Sets', slug: 'co-ord-sets' },
+      images: [{ url: 'https://images.unsplash.com/photo-1515886657613-9f3515b0c78f?auto=format&fit=crop&q=80&w=800' }],
+    },
+  ];
+
+  const displayNewArrivals = newArrivals.length > 0 ? newArrivals : fallbackProducts;
+  const displayBestSellers = bestSellers.length > 0 ? bestSellers : fallbackProducts;
 
   return (
     <div className="space-y-24 pb-16">
@@ -143,7 +209,7 @@ export default async function HomePage() {
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-          {newArrivals.map((product) => (
+          {displayNewArrivals.map((product) => (
             <ProductCard key={product.id} product={product as any} />
           ))}
         </div>
@@ -220,7 +286,7 @@ export default async function HomePage() {
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-          {bestSellers.map((product) => (
+          {displayBestSellers.map((product) => (
             <ProductCard key={product.id} product={product as any} />
           ))}
         </div>
