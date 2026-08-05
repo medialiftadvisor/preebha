@@ -1,0 +1,84 @@
+@import "tailwindcss";
+
+@theme {
+  --font-serif: var(--font-cormorant), 'Cormorant Garamond', Georgia, serif;
+  --font-sans: var(--font-jakarta), 'Plus Jakarta Sans', system-ui, sans-serif;
+
+  --color-blush: #F2D7D0;
+  --color-dusty-rose: #D0A3A6;
+  --color-plum: #410F29;
+  --color-luxury-black: #0A0A0A;
+  --color-ivory: #FAF8F6;
+  --color-text-grey: #6E6868;
+  --color-sand: #E9E3E1;
+  --color-charcoal: #1C1C1C;
+}
+
+:root {
+  --bg-primary: #FAF8F6;
+  --text-primary: #0A0A0A;
+  --accent-plum: #410F29;
+  --accent-blush: #F2D7D0;
+}
+
+body {
+  background-color: var(--bg-primary);
+  color: var(--text-primary);
+  font-family: var(--font-sans);
+  overflow-x: hidden;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Luxury Editorial Headings */
+.font-serif-luxury {
+  font-family: var(--font-serif);
+  letter-spacing: -0.01em;
+}
+
+.font-sans-body {
+  font-family: var(--font-sans);
+}
+
+/* Restrained Luxury Radius (0-4px) */
+.rounded-luxury {
+  border-radius: 2px;
+}
+
+/* Luxury Micro-Animations */
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes slideUp {
+  from { transform: translateY(100%); }
+  to { transform: translateY(0); }
+}
+
+.animate-fade-in {
+  animation: fadeIn 350ms cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+.animate-slide-up {
+  animation: slideUp 300ms cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+/* Custom Scrollbar for Luxury Browsing */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: #FAF8F6;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #D0A3A6;
+  border-radius: 2px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #410F29;
+}
