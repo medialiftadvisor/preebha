@@ -1,0 +1,469 @@
+generator client {
+  provider      = "prisma-client-js"
+  binaryTargets = ["native", "rhel-openssl-3.0.x", "debian-openssl-3.0.x"]
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  SUPER_ADMIN
+  ADMIN
+  ORDER_MANAGER
+  INVENTORY_MANAGER
+  CONTENT_MANAGER
+  CUSTOMER_SUPPORT
+  USER
+}
+
+enum OrderStatus {
+  PENDING
+  PAYMENT_PENDING
+  PAID
+  CONFIRMED
+  PROCESSING
+  PACKED
+  READY_TO_SHIP
+  SHIPPED
+  OUT_FOR_DELIVERY
+  DELIVERED
+  CANCELLED
+  RETURN_REQUESTED
+  RETURNED
+  REFUND_INITIATED
+  REFUNDED
+  FULFILLMENT_ATTENTION_REQUIRED
+}
+
+enum PaymentStatus {
+  PENDING
+  COD_PENDING
+  SUCCESS
+  FAILED
+  REFUND_INITIATED
+  REFUNDED
+}
+
+enum ReturnStatus {
+  REQUESTED
+  APPROVED
+  REJECTED
+  PICKUP_SCHEDULED
+  RECEIVED
+  QUALITY_CHECK
+  REFUND_APPROVED
+  REFUNDED
+}
+
+model User {
+  id                 String               @id @default(uuid())
+  name               String
+  email              String               @unique
+  password           String
+  phone              String?
+  role               Role                 @default(USER)
+  createdAt          DateTime             @default(now())
+  updatedAt          DateTime             @updatedAt
+
+  addresses          Address[]
+  orders             Order[]
+  wishlist           Wishlist?
+  reviews            Review[]
+  returnRequests     ReturnRequest[]
+  auditLogs          AuditLog[]
+  backInStockRequests BackInStockRequest[]
+}
+
+model Address {
+  id           String   @id @default(uuid())
+  userId       String
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name         String
+  mobile       String
+  addressLine  String
+  apartment    String?
+  landmark     String?
+  city         String
+  state        String
+  pincode      String
+  country      String   @default("India")
+  isDefault    Boolean  @default(false)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+}
+
+model Category {
+  id            String        @id @default(uuid())
+  name          String
+  slug          String        @unique
+  description   String?
+  image         String?
+  subcategories Subcategory[]
+  products      Product[]
+}
+
+model Subcategory {
+  id          String    @id @default(uuid())
+  name        String
+  slug        String    @unique
+  description String?
+  categoryId  String
+  category    Category  @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  products    Product[]
+}
+
+model Collection {
+  id          String              @id @default(uuid())
+  name        String
+  slug        String              @unique
+  description String?
+  image       String?
+  banner      String?
+  products    ProductCollection[]
+}
+
+model ProductCollection {
+  productId    String
+  product      Product    @relation(fields: [productId], references: [id], onDelete: Cascade)
+  collectionId String
+  collection   Collection @relation(fields: [collectionId], references: [id], onDelete: Cascade)
+
+  @@id([productId, collectionId])
+}
+
+model Product {
+  id               String                 @id @default(uuid())
+  name             String
+  slug             String                 @unique
+  sku              String                 @unique
+  barcode          String?
+  shortDescription String?
+  description      String
+  
+  fabric           String?
+  fit              String?
+  length           String?
+  pattern          String?
+  neck             String?
+  sleeve           String?
+  occasion         String?
+  transparency     String?
+  lining           String?
+  closure          String?
+  careInstructions String?
+  countryOfOrigin  String                 @default("India")
+  
+  modelHeight      String?
+  modelWearingSize String?
+
+  mrp              Float
+  sellingPrice     Float
+  costPrice        Float?                 @default(0)
+  discountPercent  Int                    @default(0)
+  taxRate          Float                  @default(5.0) // GST 5% for apparels
+  hsnCode          String?                @default("6204")
+
+  isNewArrival     Boolean                @default(false)
+  isBestSeller     Boolean                @default(false)
+  isFeatured       Boolean                @default(false)
+  
+  categoryId       String
+  category         Category               @relation(fields: [categoryId], references: [id])
+  subcategoryId    String?
+  subcategory      Subcategory?           @relation(fields: [subcategoryId], references: [id])
+
+  collections      ProductCollection[]
+
+  rating           Float                  @default(4.8)
+  reviewCount      Int                    @default(0)
+
+  variants         ProductVariant[]
+  images           ProductImage[]
+  reviews          Review[]
+  wishlistItems    WishlistItem[]
+  orderItems       OrderItem[]
+  backInStock      BackInStockRequest[]
+
+  createdAt        DateTime               @default(now())
+  updatedAt        DateTime               @updatedAt
+}
+
+model ProductVariant {
+  id                 String                @id @default(uuid())
+  productId          String
+  product            Product               @relation(fields: [productId], references: [id], onDelete: Cascade)
+  color              String
+  colorHex           String?
+  size               String                // XS, S, M, L, XL, XXL
+  sku                String                @unique
+  barcode            String?
+  stock              Int                   @default(10)
+  reservedStock      Int                   @default(0)
+  soldQuantity       Int                   @default(0)
+  returnedQuantity   Int                   @default(0)
+  isAvailable        Boolean               @default(true)
+
+  cartItems          CartItem[]
+  adjustments        InventoryAdjustment[]
+}
+
+model InventoryAdjustment {
+  id            String         @id @default(uuid())
+  variantId     String
+  variant       ProductVariant @relation(fields: [variantId], references: [id], onDelete: Cascade)
+  prevQuantity  Int
+  newQuantity   Int
+  difference    Int
+  reason        String         // PURCHASE, ORDER, CANCELLATION, RETURN, DAMAGED, MANUAL_CORRECTION
+  referenceRef  String?
+  createdAt     DateTime       @default(now())
+}
+
+model ProductImage {
+  id           String   @id @default(uuid())
+  productId    String
+  product      Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  url          String
+  isPrimary    Boolean  @default(false)
+  displayOrder Int      @default(0)
+  colorAssigned String?
+}
+
+model Cart {
+  id        String     @id @default(uuid())
+  userId    String?    @unique
+  sessionId String?    @unique
+  items     CartItem[]
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
+}
+
+model CartItem {
+  id        String         @id @default(uuid())
+  cartId    String
+  cart      Cart           @relation(fields: [cartId], references: [id], onDelete: Cascade)
+  variantId String
+  variant   ProductVariant @relation(fields: [variantId], references: [id], onDelete: Cascade)
+  quantity  Int            @default(1)
+  createdAt DateTime       @default(now())
+}
+
+model Wishlist {
+  id        String         @id @default(uuid())
+  userId    String         @unique
+  user      User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  items     WishlistItem[]
+  createdAt DateTime       @default(now())
+}
+
+model WishlistItem {
+  id         String   @id @default(uuid())
+  wishlistId String
+  wishlist   Wishlist @relation(fields: [wishlistId], references: [id], onDelete: Cascade)
+  productId  String
+  product    Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  createdAt  DateTime @default(now())
+
+  @@unique([wishlistId, productId])
+}
+
+model Order {
+  id                  String               @id @default(uuid())
+  orderNumber         String               @unique
+  invoiceNumber       String?              @unique
+  userId              String?
+  user                User?                @relation(fields: [userId], references: [id])
+  customerName        String
+  customerEmail       String
+  customerPhone       String
+  shippingAddressJson String
+  
+  totalMRP            Float
+  discountAmount      Float                @default(0)
+  shippingFee         Float                @default(0)
+  taxAmount           Float                @default(0)
+  grandTotal          Float
+
+  paymentStatus       PaymentStatus        @default(PENDING)
+  paymentMethod       String               @default("RAZORPAY_ONLINE")
+  paymentId           String?
+  razorpayOrderId     String?
+  razorpaySignature   String?
+
+  orderStatus         OrderStatus          @default(CONFIRMED)
+  awbNumber           String?
+  trackingUrl         String?
+  courierName         String?
+
+  items               OrderItem[]
+  history             OrderStatusHistory[]
+  refunds             RefundRecord[]
+  shipments           ShipmentRecord[]
+  returnRequests      ReturnRequest[]
+  paymentEvents       PaymentEvent[]
+
+  createdAt           DateTime             @default(now())
+  updatedAt           DateTime             @updatedAt
+}
+
+model OrderItem {
+  id           String   @id @default(uuid())
+  orderId      String
+  order        Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  productId    String
+  product      Product  @relation(fields: [productId], references: [id])
+  productName  String
+  productImage String
+  color        String
+  size         String
+  sku          String
+  hsnCode      String?  @default("6204")
+  taxRate      Float    @default(5.0)
+  price        Float
+  quantity     Int
+}
+
+model OrderStatusHistory {
+  id        String      @id @default(uuid())
+  orderId   String
+  order     Order       @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  status    OrderStatus
+  comment   String?
+  createdAt DateTime    @default(now())
+}
+
+model PaymentEvent {
+  id           String   @id @default(uuid())
+  orderId      String
+  order        Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  provider     String   @default("RAZORPAY")
+  eventId      String   @unique
+  eventType    String
+  payloadJson  String
+  createdAt    DateTime @default(now())
+}
+
+model RefundRecord {
+  id          String   @id @default(uuid())
+  orderId     String
+  order       Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  refundId    String   @unique // Razorpay refund ID
+  amount      Float
+  reason      String?
+  status      String   @default("PROCESSED")
+  createdAt   DateTime @default(now())
+}
+
+model ShipmentRecord {
+  id                String   @id @default(uuid())
+  orderId           String
+  order             Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  shiprocketOrderId String?
+  shipmentId        String?
+  awbNumber         String?
+  courierName       String?
+  labelUrl          String?
+  trackingUrl       String?
+  status            String   @default("CREATED")
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+}
+
+model ReturnRequest {
+  id          String       @id @default(uuid())
+  orderId     String
+  order       Order        @relation(fields: [orderId], references: [id])
+  userId      String
+  user        User         @relation(fields: [userId], references: [id])
+  reason      String
+  comments    String?
+  imagesJson  String?
+  status      ReturnStatus @default(REQUESTED)
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+}
+
+model BackInStockRequest {
+  id        String   @id @default(uuid())
+  productId String
+  product   Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  userId    String?
+  user      User?    @relation(fields: [userId], references: [id])
+  email     String
+  size      String
+  notified  Boolean  @default(false)
+  createdAt DateTime @default(now())
+}
+
+model Coupon {
+  id                String    @id @default(uuid())
+  code              String    @unique
+  discountType      String    @default("PERCENTAGE") // PERCENTAGE or FIXED
+  discountValue     Float
+  minOrderValue     Float     @default(0)
+  maxDiscountAmount Float?
+  expiryDate        DateTime?
+  usageLimit        Int?
+  timesUsed         Int       @default(0)
+  isActive          Boolean   @default(true)
+}
+
+model Banner {
+  id           String   @id @default(uuid())
+  title        String
+  subtitle     String?
+  image        String
+  link         String?
+  buttonText   String?  @default("Shop Now")
+  displayOrder Int      @default(0)
+  isActive     Boolean  @default(true)
+}
+
+model Announcement {
+  id        String   @id @default(uuid())
+  message   String
+  isLink    Boolean  @default(false)
+  linkUrl   String?
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+}
+
+model Review {
+  id                 String   @id @default(uuid())
+  productId          String
+  product            Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  userId             String?
+  user               User?    @relation(fields: [userId], references: [id])
+  userName           String
+  rating             Int
+  title              String?
+  comment            String
+  isVerifiedPurchase Boolean  @default(true)
+  createdAt          DateTime @default(now())
+}
+
+model NewsletterSubscriber {
+  id                String   @id @default(uuid())
+  email             String   @unique
+  marketingConsent  Boolean  @default(true)
+  createdAt         DateTime @default(now())
+}
+
+model SiteSetting {
+  id        String   @id @default(uuid())
+  key       String   @unique
+  value     String
+  updatedAt DateTime @updatedAt
+}
+
+model AuditLog {
+  id        String   @id @default(uuid())
+  userId    String?
+  user      User?    @relation(fields: [userId], references: [id])
+  action    String
+  entity    String
+  details   String?
+  createdAt DateTime @default(now())
+}
