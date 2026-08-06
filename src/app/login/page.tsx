@@ -15,8 +15,9 @@ export default function LoginPage() {
   const [password, setPassword] = useState('');
   const [isAdminMode, setIsAdminMode] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setErrorMsg('');
 
@@ -25,68 +26,34 @@ export default function LoginPage() {
       return;
     }
 
-    // 1. Admin Login Verification
-    if (isAdminMode || email.toLowerCase().includes('admin')) {
-      if (password === 'adminpassword123' || password === 'admin123' || password.length >= 6) {
-        const adminUser = {
-          id: 'admin-user-1',
-          name: 'PREEBHA Super Admin',
-          email: email.toLowerCase(),
-          phone: '+91 9876543210',
-          role: 'ADMIN' as const,
-        };
-        loginUser(adminUser);
-        router.push('/admin');
-        return;
-      } else {
-        setErrorMsg('Invalid Admin credentials.');
+    setIsLoading(true);
+
+    try {
+      const res = await fetch('/api/auth/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, password, isAdminMode }),
+      });
+
+      const data = await res.json();
+
+      if (!res.ok || !data.success) {
+        setErrorMsg(data.error || 'Invalid credentials.');
+        setIsLoading(false);
         return;
       }
+
+      loginUser(data.user);
+
+      if (data.user.role === 'ADMIN' || data.user.role === 'SUPER_ADMIN') {
+        router.push('/admin');
+      } else {
+        router.push('/account');
+      }
+    } catch (err) {
+      setErrorMsg('Network error logging in. Please try again.');
+      setIsLoading(false);
     }
-
-    // 2. Demo User Fallback check
-    if (email.toLowerCase() === 'ananya@example.com' && password === 'userpassword123') {
-      const demoUser = {
-        id: 'demo-user-1',
-        name: 'Ananya Sharma',
-        email: 'ananya@example.com',
-        phone: '+91 9898989898',
-        role: 'USER' as const,
-      };
-      loginUser(demoUser);
-      router.push('/account');
-      return;
-    }
-
-    // 3. User Login Verification against registered accounts
-    const registeredUsersRaw = localStorage.getItem('preebha_registered_users');
-    const registeredUsers = registeredUsersRaw ? JSON.parse(registeredUsersRaw) : [];
-
-    const foundUser = registeredUsers.find(
-      (u: any) => u.email.toLowerCase() === email.toLowerCase()
-    );
-
-    if (!foundUser) {
-      setErrorMsg('Account not found with this email. Please register first.');
-      return;
-    }
-
-    if (foundUser.password !== password) {
-      setErrorMsg('Incorrect password. Please try again.');
-      return;
-    }
-
-    // Successful user login
-    const loggedInUser = {
-      id: foundUser.id,
-      name: foundUser.name,
-      email: foundUser.email,
-      phone: foundUser.phone || '+91 9876543210',
-      role: 'USER' as const,
-    };
-
-    loginUser(loggedInUser);
-    router.push('/account');
   };
 
   return (
@@ -116,7 +83,7 @@ export default function LoginPage() {
           <input
             type="email"
             required
-            placeholder="e.g. ananya@example.com"
+            placeholder="e.g. priya@example.com"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
             className="w-full px-3 py-2.5 text-xs border border-sand bg-ivory focus:outline-none focus:border-plum"
@@ -154,9 +121,10 @@ export default function LoginPage() {
 
         <button
           type="submit"
-          className="w-full py-3.5 bg-plum text-ivory text-xs uppercase tracking-widest font-medium hover:bg-luxury-black transition-colors shadow-md flex items-center justify-center space-x-2"
+          disabled={isLoading}
+          className="w-full py-3.5 bg-plum text-ivory text-xs uppercase tracking-widest font-medium hover:bg-luxury-black transition-colors shadow-md flex items-center justify-center space-x-2 disabled:opacity-50"
         >
-          <span>Sign In</span>
+          <span>{isLoading ? 'Signing In...' : 'Sign In'}</span>
           <ArrowRight className="w-4 h-4" />
         </button>
 

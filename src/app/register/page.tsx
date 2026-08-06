@@ -17,8 +17,9 @@ export default function RegisterPage() {
   const [password, setPassword] = useState('');
   const [errorMsg, setErrorMsg] = useState('');
   const [successMsg, setSuccessMsg] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setErrorMsg('');
     setSuccessMsg('');
@@ -33,48 +34,35 @@ export default function RegisterPage() {
       return;
     }
 
-    // Retrieve existing registered users
-    const registeredUsersRaw = localStorage.getItem('preebha_registered_users');
-    const registeredUsers = registeredUsersRaw ? JSON.parse(registeredUsersRaw) : [];
+    setIsLoading(true);
 
-    // Check for duplicate email
-    const existing = registeredUsers.find(
-      (u: any) => u.email.toLowerCase() === email.toLowerCase()
-    );
-
-    if (existing) {
-      setErrorMsg('An account with this email already exists. Please Sign In.');
-      return;
-    }
-
-    // Create new user record
-    const newUser = {
-      id: `usr_${Date.now()}`,
-      name,
-      email: email.toLowerCase(),
-      phone: phone || '+91 9876543210',
-      password, // In client storage
-      role: 'USER' as const,
-      createdAt: new Date().toISOString(),
-    };
-
-    // Update registered users registry
-    registeredUsers.push(newUser);
-    localStorage.setItem('preebha_registered_users', JSON.stringify(registeredUsers));
-
-    setSuccessMsg('Account created successfully! Logging you in...');
-
-    // Automatically log in newly registered user
-    setTimeout(() => {
-      loginUser({
-        id: newUser.id,
-        name: newUser.name,
-        email: newUser.email,
-        phone: newUser.phone,
-        role: 'USER',
+    try {
+      const res = await fetch('/api/auth/register', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name, email, phone, password }),
       });
-      router.push('/account');
-    }, 1000);
+
+      const data = await res.json();
+
+      if (!res.ok || !data.success) {
+        setErrorMsg(data.error || 'Failed to register account.');
+        setIsLoading(false);
+        return;
+      }
+
+      setSuccessMsg('Account created and saved to database! Logging you in...');
+
+      // Save user session
+      loginUser(data.user);
+
+      setTimeout(() => {
+        router.push('/account');
+      }, 1000);
+    } catch (err: any) {
+      setErrorMsg('Network error registering account. Please try again.');
+      setIsLoading(false);
+    }
   };
 
   return (
@@ -161,9 +149,10 @@ export default function RegisterPage() {
 
         <button
           type="submit"
-          className="w-full py-3.5 bg-plum text-ivory text-xs uppercase tracking-widest font-medium hover:bg-luxury-black transition-colors shadow-md flex items-center justify-center space-x-2"
+          disabled={isLoading}
+          className="w-full py-3.5 bg-plum text-ivory text-xs uppercase tracking-widest font-medium hover:bg-luxury-black transition-colors shadow-md flex items-center justify-center space-x-2 disabled:opacity-50"
         >
-          <span>Create Account</span>
+          <span>{isLoading ? 'Creating Account...' : 'Create Account'}</span>
           <ArrowRight className="w-4 h-4" />
         </button>
 

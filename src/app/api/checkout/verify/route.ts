@@ -37,14 +37,36 @@ export async function POST(req: Request) {
     const orderNumber = `PRB-${Date.now().toString().slice(-6)}`;
     let orderId = `ord-${Date.now()}`;
 
-    // Attempt to persist in Database
+    const customerEmail = (orderData.customerEmail || 'customer@preebhalifestyle.com').toLowerCase().trim();
+    const customerName = orderData.customerName || 'PREEBHA Customer';
+    const customerPhone = orderData.customerPhone || '+91 9876543210';
+
+    // Attempt to persist User and Order in Database
     try {
+      // Find or create customer user in database
+      let dbUser = await prisma.user.findUnique({
+        where: { email: customerEmail },
+      });
+
+      if (!dbUser) {
+        dbUser = await prisma.user.create({
+          data: {
+            name: customerName,
+            email: customerEmail,
+            password: 'guestpassword123',
+            phone: customerPhone,
+            role: 'USER',
+          },
+        });
+      }
+
       const order = await prisma.order.create({
         data: {
           orderNumber,
-          customerName: orderData.customerName || 'PREEBHA Customer',
-          customerEmail: orderData.customerEmail || 'customer@preebhalifestyle.com',
-          customerPhone: orderData.customerPhone || '+91 9876543210',
+          userId: dbUser.id,
+          customerName,
+          customerEmail,
+          customerPhone,
           shippingAddressJson: JSON.stringify(orderData.shippingAddress || {}),
           totalMRP: orderData.totalMRP || orderData.grandTotal || 4999,
           discountAmount: orderData.discountAmount || 0,
