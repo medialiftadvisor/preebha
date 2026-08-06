@@ -5,22 +5,76 @@ import { useAuth } from '@/context/AuthContext';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import Logo from '@/components/brand/Logo';
-import { ArrowRight } from 'lucide-react';
+import { ArrowRight, AlertCircle, CheckCircle2 } from 'lucide-react';
 
 export default function RegisterPage() {
-  const { login } = useAuth();
+  const { loginUser } = useAuth();
   const router = useRouter();
 
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [phone, setPhone] = useState('');
   const [password, setPassword] = useState('');
+  const [errorMsg, setErrorMsg] = useState('');
+  const [successMsg, setSuccessMsg] = useState('');
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!email || !password || !name) return;
-    login(email, 'USER');
-    router.push('/account');
+    setErrorMsg('');
+    setSuccessMsg('');
+
+    if (!name || !email || !password) {
+      setErrorMsg('Please fill in all required fields.');
+      return;
+    }
+
+    if (password.length < 6) {
+      setErrorMsg('Password must be at least 6 characters long.');
+      return;
+    }
+
+    // Retrieve existing registered users
+    const registeredUsersRaw = localStorage.getItem('preebha_registered_users');
+    const registeredUsers = registeredUsersRaw ? JSON.parse(registeredUsersRaw) : [];
+
+    // Check for duplicate email
+    const existing = registeredUsers.find(
+      (u: any) => u.email.toLowerCase() === email.toLowerCase()
+    );
+
+    if (existing) {
+      setErrorMsg('An account with this email already exists. Please Sign In.');
+      return;
+    }
+
+    // Create new user record
+    const newUser = {
+      id: `usr_${Date.now()}`,
+      name,
+      email: email.toLowerCase(),
+      phone: phone || '+91 9876543210',
+      password, // In client storage
+      role: 'USER' as const,
+      createdAt: new Date().toISOString(),
+    };
+
+    // Update registered users registry
+    registeredUsers.push(newUser);
+    localStorage.setItem('preebha_registered_users', JSON.stringify(registeredUsers));
+
+    setSuccessMsg('Account created successfully! Logging you in...');
+
+    // Automatically log in newly registered user
+    setTimeout(() => {
+      loginUser({
+        id: newUser.id,
+        name: newUser.name,
+        email: newUser.email,
+        phone: newUser.phone,
+        role: 'USER',
+      });
+      router.push('/account');
+    }, 1000);
   };
 
   return (
@@ -36,6 +90,20 @@ export default function RegisterPage() {
       </div>
 
       <form onSubmit={handleSubmit} className="bg-sand/30 p-8 rounded border border-sand space-y-4 shadow-xs">
+        {errorMsg && (
+          <div className="p-3 bg-rose-100 border border-rose-300 text-rose-900 rounded text-xs flex items-center space-x-2">
+            <AlertCircle className="w-4 h-4 shrink-0 text-rose-700" />
+            <span>{errorMsg}</span>
+          </div>
+        )}
+
+        {successMsg && (
+          <div className="p-3 bg-emerald-100 border border-emerald-300 text-emerald-900 rounded text-xs flex items-center space-x-2">
+            <CheckCircle2 className="w-4 h-4 shrink-0 text-emerald-700" />
+            <span>{successMsg}</span>
+          </div>
+        )}
+
         <div>
           <label className="block text-xs uppercase tracking-wider text-charcoal font-semibold mb-1">
             Full Name *
@@ -43,7 +111,7 @@ export default function RegisterPage() {
           <input
             type="text"
             required
-            placeholder="e.g. Ananya Sharma"
+            placeholder="e.g. Priya Sharma"
             value={name}
             onChange={(e) => setName(e.target.value)}
             className="w-full px-3 py-2.5 text-xs border border-sand bg-ivory focus:outline-none focus:border-plum"
@@ -57,7 +125,7 @@ export default function RegisterPage() {
           <input
             type="email"
             required
-            placeholder="ananya@example.com"
+            placeholder="priya@example.com"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
             className="w-full px-3 py-2.5 text-xs border border-sand bg-ivory focus:outline-none focus:border-plum"
@@ -84,7 +152,7 @@ export default function RegisterPage() {
           <input
             type="password"
             required
-            placeholder="••••••••"
+            placeholder="At least 6 characters"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
             className="w-full px-3 py-2.5 text-xs border border-sand bg-ivory focus:outline-none focus:border-plum"

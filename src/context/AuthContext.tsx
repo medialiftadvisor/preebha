@@ -5,7 +5,7 @@ import { User } from '@/lib/types';
 
 interface AuthContextType {
   user: User | null;
-  login: (email: string, role?: 'USER' | 'ADMIN') => void;
+  loginUser: (userData: User) => void;
   logout: () => void;
   isAuthenticated: boolean;
   isAdmin: boolean;
@@ -22,30 +22,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       if (savedUser) {
         setUser(JSON.parse(savedUser));
       } else {
-        // Default guest/demo user for instant access
-        setUser({
-          id: 'demo-user-1',
-          name: 'Ananya Sharma',
-          email: 'ananya@example.com',
-          phone: '+91 9898989898',
-          role: 'USER',
-        });
+        // Start as guest (not automatically logged in as demo user)
+        setUser(null);
       }
     } catch (e) {
       console.error('Failed to load user session:', e);
     }
   }, []);
 
-  const login = (email: string, role: 'USER' | 'ADMIN' = 'USER') => {
-    const newUser: User = {
-      id: role === 'ADMIN' ? 'admin-user-1' : `user-${Date.now()}`,
-      name: role === 'ADMIN' ? 'PREEBHA Admin' : email.split('@')[0],
-      email,
-      role,
-      phone: '+91 9876543210',
-    };
-    setUser(newUser);
-    localStorage.setItem('preebha_user', JSON.stringify(newUser));
+  const loginUser = (userData: User) => {
+    setUser(userData);
+    localStorage.setItem('preebha_user', JSON.stringify(userData));
   };
 
   const logout = () => {
@@ -57,10 +44,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     <AuthContext.Provider
       value={{
         user,
-        login,
+        loginUser,
         logout,
         isAuthenticated: !!user,
-        isAdmin: user?.role === 'ADMIN',
+        isAdmin: user?.role === 'ADMIN' || user?.role === 'SUPER_ADMIN',
       }}
     >
       {children}
