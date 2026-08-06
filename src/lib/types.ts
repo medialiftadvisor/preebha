@@ -101,7 +101,7 @@ export interface User {
   name: string;
   email: string;
   phone?: string;
-  role: 'USER' | 'ADMIN';
+  role: 'USER' | 'ADMIN' | 'SUPER_ADMIN';
 }
 
 export interface Order {
